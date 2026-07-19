@@ -1,21 +1,14 @@
 package ma.enset.ebankbackend;
 
-import ma.enset.ebankbackend.entities.AccountOperation;
-import ma.enset.ebankbackend.entities.CurrentAccount;
-import ma.enset.ebankbackend.entities.Customer;
-import ma.enset.ebankbackend.entities.SavingAccount;
-import ma.enset.ebankbackend.enums.AccountStatus;
-import ma.enset.ebankbackend.enums.OperationType;
-import ma.enset.ebankbackend.repositories.AccountOperationRepository;
-import ma.enset.ebankbackend.repositories.BankAccountRepository;
-import ma.enset.ebankbackend.repositories.CustomerRepository;
+import ma.enset.ebankbackend.dtos.BankAccountDTO;
+import ma.enset.ebankbackend.dtos.CustomerDTO;
+import ma.enset.ebankbackend.services.BankAccountService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
-import java.util.Date;
-import java.util.UUID;
+import java.util.List;
 import java.util.stream.Stream;
 
 @SpringBootApplication
@@ -26,55 +19,39 @@ public class EbankBackendApplication {
     }
 
     @Bean
-    CommandLineRunner start(CustomerRepository customerRepository,
-                            BankAccountRepository bankAccountRepository,
-                            AccountOperationRepository accountOperationRepository) {
+    CommandLineRunner start(BankAccountService bankAccountService) {
         return args -> {
             Stream.of("Hassan", "Yassine", "Aicha").forEach(name -> {
-                Customer customer = Customer.builder()
-                        .name(name)
-                        .email(name.toLowerCase() + "@gmail.com")
-                        .build();
-                customerRepository.save(customer);
+                CustomerDTO customer = new CustomerDTO();
+                customer.setName(name);
+                customer.setEmail(name.toLowerCase() + "@gmail.com");
+                bankAccountService.saveCustomer(customer);
             });
 
-            customerRepository.findAll().forEach(customer -> {
-                CurrentAccount currentAccount = new CurrentAccount();
-                currentAccount.setId(UUID.randomUUID().toString());
-                currentAccount.setBalance(Math.random() * 90000);
-                currentAccount.setCreatedAt(new Date());
-                currentAccount.setStatus(AccountStatus.CREATED);
-                currentAccount.setCustomer(customer);
-                currentAccount.setOverDraft(9000);
-                bankAccountRepository.save(currentAccount);
-
-                SavingAccount savingAccount = new SavingAccount();
-                savingAccount.setId(UUID.randomUUID().toString());
-                savingAccount.setBalance(Math.random() * 120000);
-                savingAccount.setCreatedAt(new Date());
-                savingAccount.setStatus(AccountStatus.CREATED);
-                savingAccount.setCustomer(customer);
-                savingAccount.setInterestRate(5.5);
-                bankAccountRepository.save(savingAccount);
-            });
-
-            bankAccountRepository.findAll().forEach(account -> {
-                for (int i = 0; i < 10; i++) {
-                    AccountOperation operation = AccountOperation.builder()
-                            .operationDate(new Date())
-                            .amount(1000 + Math.random() * 12000)
-                            .type(Math.random() > 0.5 ? OperationType.DEBIT : OperationType.CREDIT)
-                            .bankAccount(account)
-                            .description("Operation " + (i + 1))
-                            .build();
-                    accountOperationRepository.save(operation);
+            bankAccountService.listCustomers().forEach(customer -> {
+                try {
+                    bankAccountService.saveCurrentBankAccount(Math.random() * 90000, 9000, customer.getId());
+                    bankAccountService.saveSavingBankAccount(Math.random() * 120000, 5.5, customer.getId());
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             });
 
-            System.out.println("DAO test OK : "
-                    + customerRepository.count() + " customers, "
-                    + bankAccountRepository.count() + " accounts, "
-                    + accountOperationRepository.count() + " operations");
+            List<BankAccountDTO> bankAccounts = bankAccountService.bankAccountList();
+            for (BankAccountDTO bankAccount : bankAccounts) {
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        bankAccountService.credit(bankAccount.getId(), 10000 + Math.random() * 120000, "Credit");
+                        bankAccountService.debit(bankAccount.getId(), 1000 + Math.random() * 9000, "Debit");
+                    } catch (Exception e) {
+                        // solde insuffisant possible sur certains débits
+                    }
+                }
+            }
+
+            System.out.println("Service layer test OK : "
+                    + bankAccountService.listCustomers().size() + " customers, "
+                    + bankAccountService.bankAccountList().size() + " accounts");
         };
     }
 }

@@ -77,3 +77,37 @@ public interface AccountOperationRepository extends JpaRepository<AccountOperati
 Un `CommandLineRunner` crée 3 clients, pour chacun un compte courant et un compte épargne (id UUID), puis 10 opérations aléatoires par compte.
 
 [À remplacer : capture de la table `bank_account` avec la colonne `TYPE` (CA / SA) dans MySQL]
+
+## Couche service et DTOs
+
+### Pourquoi des DTOs
+
+Les contrôleurs REST ne doivent pas exposer directement les entités JPA : relations lazy, structure interne, couplage fort avec la base. Les DTOs (`CustomerDTO`, `CurrentBankAccountDTO`, `SavingBankAccountDTO`, `AccountOperationDTO`, `AccountHistoryDTO`) portent uniquement les données utiles à l'API. Un mapper (`BankAccountMapperImpl`) convertit entité ↔ DTO avec `BeanUtils.copyProperties`.
+
+```java
+public CustomerDTO fromCustomer(Customer customer) {
+    CustomerDTO customerDTO = new CustomerDTO();
+    BeanUtils.copyProperties(customer, customerDTO);
+    return customerDTO;
+}
+```
+
+`BankAccountDTO` regroupe les champs communs ; `CurrentBankAccountDTO` et `SavingBankAccountDTO` l'étendent.
+
+### Service transactionnel
+
+`BankAccountServiceImpl` est annoté `@Service` et `@Transactional`. Toute la logique métier (clients, comptes, débit/crédit/virement, historique paginé) passe par ce service. Les erreurs métier sont des exceptions dédiées (`CustomerNotFoundException`, `BankAccountNotFoundException`, `BalanceNotSufficientException`).
+
+```java
+public void debit(String accountId, double amount, String description)
+        throws BankAccountNotFoundException, BalanceNotSufficientException {
+    BankAccount bankAccount = bankAccountRepository.findById(accountId)
+            .orElseThrow(() -> new BankAccountNotFoundException("BankAccount not found"));
+    if (bankAccount.getBalance() < amount) {
+        throw new BalanceNotSufficientException("Balance not sufficient");
+    }
+    // enregistre l'opération et met à jour le solde
+}
+```
+
+Le `CommandLineRunner` utilise désormais uniquement la couche service (plus d'accès direct aux repositories).
