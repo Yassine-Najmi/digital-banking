@@ -1,0 +1,37 @@
+@if (authService.isAuthenticated()) {
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" routerLink="/customers">E-Bank</a>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#mainNav"
+        aria-controls="mainNav"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/customers" routerLinkActive="active">Clients</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/accounts" routerLinkActive="active">Comptes</a>
+          </li>
+        </ul>
+        <span class="navbar-text text-white me-3">
+          {{ authService.username }}
+          @if (authService.isAdmin()) {
+            <span class="badge text-bg-warning ms-1">ADMIN</span>
+          }
+        </span>
+        <button class="btn btn-outline-light btn-sm" type="button" (click)="handleLogout()">
+          Déconnexion
+        </button>
+      </div>
+    </div>
+  </nav>
+}

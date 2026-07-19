@@ -1,0 +1,47 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Connexion</h4>
+        </div>
+        <div class="card-body">
+          <form [formGroup]="form" (ngSubmit)="handleLogin()">
+            <div class="mb-3">
+              <label class="form-label" for="username">Nom d'utilisateur</label>
+              <input
+                id="username"
+                type="text"
+                class="form-control"
+                formControlName="username"
+                autocomplete="username"
+              />
+              @if (form.controls.username.touched && form.controls.username.invalid) {
+                <div class="text-danger small">Le nom d'utilisateur est obligatoire.</div>
+              }
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="password">Mot de passe</label>
+              <input
+                id="password"
+                type="password"
+                class="form-control"
+                formControlName="password"
+                autocomplete="current-password"
+              />
+              @if (form.controls.password.touched && form.controls.password.invalid) {
+                <div class="text-danger small">Le mot de passe est obligatoire.</div>
+              }
+            </div>
+            @if (errorMessage) {
+              <div class="alert alert-danger py-2">{{ errorMessage }}</div>
+            }
+            <button type="submit" class="btn btn-primary w-100" [disabled]="form.invalid">
+              Se connecter
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

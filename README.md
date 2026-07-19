@@ -9,7 +9,7 @@ Le projet est un monorepo organisé en deux parties :
 - `backend/` : API Spring Boot 3 (Java 17, Spring Data JPA, MySQL). La documentation OpenAPI est exposée via springdoc.
 - `frontend/` : application Angular qui consomme l'API.
 
-La sécurité repose sur JWT (à ajouter dans les prochaines étapes). Un chatbot RAG est prévu pour interroger les données bancaires en langage naturel.
+La sécurité repose sur JWT (Spring Security resource server). Un chatbot RAG est prévu pour interroger les données bancaires en langage naturel.
 
 Au démarrage local, MySQL 8 tourne dans Docker (`docker compose up -d`, port 3307, base `ebank-db`). Le backend écoute sur le port 8085.
 
@@ -190,3 +190,59 @@ Les méthodes sensibles sont protégées avec `@PreAuthorize` : lecture (`USER`)
 ### Audit
 
 Les entités `Customer`, `BankAccount` et `AccountOperation` portent un champ `performedBy`. À chaque save/debit/credit, le service renseigne le username depuis `SecurityContextHolder` (ou `system` au démarrage du seed).
+
+## Client Angular
+
+Application `ebank-frontend` (Angular 19, composants standalone) dans `frontend/`. Bootstrap et Bootstrap Icons sont installés via npm (pas de CDN) et référencés dans `angular.json`.
+
+### Démarrage
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Le client écoute sur http://localhost:4200 et appelle l'API via `environment.backendHost = http://localhost:8085`.
+
+Comptes de test : `admin` / `12345` (USER + ADMIN), `user1` / `12345` (USER).
+
+### Structure
+
+```
+frontend/src/app/
+  accounts/          # solde + opérations paginées + débit/crédit/virement (ADMIN)
+  customers/         # liste, recherche, création, édition
+  guards/            # authGuard
+  interceptors/      # Bearer JWT
+  login/             # formulaire Bootstrap
+  models/            # interfaces TypeScript (DTOs)
+  navbar/            # username + déconnexion
+  services/          # AuthService, CustomerService, AccountService
+src/environments/    # backendHost
+```
+
+### Authentification
+
+`AuthService` envoie `POST /auth/login`, stocke le JWT dans `localStorage` sous la clé `access-token`, puis décode le payload (Base64) pour lire `sub` (username) et `scope` (rôles séparés par des espaces).
+
+L'interceptor HTTP ajoute l'en-tête `Authorization: Bearer <token>` sur chaque requête (sauf `/auth/login`).
+
+`authGuard` protège les routes métier : si aucun token n'est présent, redirection vers `/login`.
+
+Dans l'UI, les actions ADMIN (nouveau client, modifier, supprimer, formulaire d'opération) sont masquées si le rôle `ADMIN` est absent.
+
+### Fonctionnalités
+
+- **Clients** : recherche (`GET /customers/search?keyword=`), tableau, formulaires réactifs avec validation (nom, email).
+- **Comptes** : saisie d'un id de compte, affichage du solde et de l'historique paginé (`/accounts/{id}/pageOperations`). En ADMIN : CREDIT, DEBIT ou TRANSFER, puis rafraîchissement de la table.
+
+### Captures d'écran
+
+[À remplacer : page de connexion]
+
+[À remplacer : liste des clients (admin)]
+
+[À remplacer : page compte avec solde et opérations]
+
+[À remplacer : formulaire débit/crédit (admin)]
