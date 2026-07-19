@@ -5,6 +5,7 @@ import { CustomersComponent } from './customers/customers.component';
 import { NewCustomerComponent } from './customers/new-customer.component';
 import { EditCustomerComponent } from './customers/edit-customer.component';
 import { AccountsComponent } from './accounts/accounts.component';
+import { ChatbotComponent } from './chatbot/chatbot.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -12,6 +13,7 @@ export const routes: Routes = [
   { path: 'new-customer', component: NewCustomerComponent, canActivate: [authGuard] },
   { path: 'edit-customer/:id', component: EditCustomerComponent, canActivate: [authGuard] },
   { path: 'accounts', component: AccountsComponent, canActivate: [authGuard] },
+  { path: 'chatbot', component: ChatbotComponent, canActivate: [authGuard] },
   { path: '', redirectTo: '/customers', pathMatch: 'full' },
   { path: '**', redirectTo: '/customers' }
 ];

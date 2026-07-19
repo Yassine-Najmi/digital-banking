@@ -9,7 +9,7 @@ Le projet est un monorepo organisé en deux parties :
 - `backend/` : API Spring Boot 3 (Java 17, Spring Data JPA, MySQL). La documentation OpenAPI est exposée via springdoc.
 - `frontend/` : application Angular qui consomme l'API.
 
-La sécurité repose sur JWT (Spring Security resource server). Un chatbot RAG est prévu pour interroger les données bancaires en langage naturel.
+La sécurité repose sur JWT (Spring Security resource server). Un chatbot RAG (Spring AI + OpenAI) est intégré dans l'application web (route `/chatbot`).
 
 Au démarrage local, MySQL 8 tourne dans Docker (`docker compose up -d`, port 3307, base `ebank-db`). Le backend écoute sur le port 8085.
 
@@ -218,7 +218,8 @@ frontend/src/app/
   login/             # formulaire Bootstrap
   models/            # interfaces TypeScript (DTOs)
   navbar/            # username + déconnexion
-  services/          # AuthService, CustomerService, AccountService
+  services/          # AuthService, CustomerService, AccountService, ChatService
+  chatbot/           # conversation RAG (bulles user/assistant)
 src/environments/    # backendHost
 ```
 
@@ -236,6 +237,7 @@ Dans l'UI, les actions ADMIN (nouveau client, modifier, supprimer, formulaire d'
 
 - **Clients** : recherche (`GET /customers/search?keyword=`), tableau, formulaires réactifs avec validation (nom, email).
 - **Comptes** : saisie d'un id de compte, affichage du solde et de l'historique paginé (`/accounts/{id}/pageOperations`). En ADMIN : CREDIT, DEBIT ou TRANSFER, puis rafraîchissement de la table.
+- **Chatbot** : route `/chatbot`, conversation avec l'assistant RAG (`POST /chat`).
 
 ### Captures d'écran
 
@@ -246,3 +248,44 @@ Dans l'UI, les actions ADMIN (nouveau client, modifier, supprimer, formulaire d'
 [À remplacer : page compte avec solde et opérations]
 
 [À remplacer : formulaire débit/crédit (admin)]
+
+## Chatbot RAG
+
+### Principe RAG
+
+RAG (Retrieval Augmented Generation) complète le modèle de langage avec des documents internes :
+
+1. **Embedding** : le guide produits est découpé (`TokenTextSplitter`) puis transformé en vecteurs via le modèle d'embedding OpenAI.
+2. **Vector store** : les vecteurs sont stockés dans un `SimpleVectorStore` persisté dans `backend/data/ebank-vector-store.json` (pas de ré-embedding à chaque démarrage si le fichier existe).
+3. **Retrieval** : à chaque question, `QuestionAnswerAdvisor` recherche les chunks les plus proches.
+4. **Augmentation du prompt** : ces chunks sont injectés dans le prompt envoyé au LLM, qui répond en s'appuyant sur ce contexte.
+
+### Architecture
+
+- Document source : `backend/src/main/resources/rag/guide-produits-ebank.md`
+- Configuration : `RagConfig` (ingestion / chargement), `ChatService` (`ChatClient` + advisor + prompt système en français), `POST /chat` (`ChatRestController`, authentifié `USER`)
+- Frontend : route `/chatbot` (bulles utilisateur / conseiller, état de chargement)
+
+Spring AI **1.1.8** (BOM) est utilisé : c'est la branche stable compatible Spring Boot 3.5. Spring AI 2.0 nécessite Spring Boot 4.
+
+### Clé API
+
+La clé OpenAI **n'est jamais commitée**. Elle est fournie uniquement via la variable d'environnement `OPENAI_API_KEY` :
+
+```properties
+spring.ai.openai.api-key=${OPENAI_API_KEY}
+```
+
+Voir `.env.example` à la racine du monorepo. Exemple Windows PowerShell :
+
+```powershell
+$env:OPENAI_API_KEY = "sk-..."
+cd backend
+mvn spring-boot:run
+```
+
+### Captures
+
+[À remplacer : conversation chatbot sur les frais / découvert]
+
+[À remplacer : refus d'une question hors sujet]

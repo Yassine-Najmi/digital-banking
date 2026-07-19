@@ -1,0 +1,46 @@
+<div class="container chatbot-page">
+  <h2 class="mb-3">Conseiller virtuel E-Bank</h2>
+  <p class="text-muted mb-3">
+    Posez une question sur les comptes, frais, découvert ou procédures (réponses basées sur le guide RAG).
+  </p>
+
+  <div class="chat-window card shadow-sm mb-3">
+    <div class="card-body chat-messages">
+      @for (message of messages; track $index) {
+        <div class="message-row" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+          <div class="bubble">
+            <div class="role">{{ message.role === 'user' ? 'Vous' : 'Conseiller' }}</div>
+            <div class="content">{{ message.content }}</div>
+          </div>
+        </div>
+      }
+      @if (loading) {
+        <div class="message-row assistant">
+          <div class="bubble loading">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Réflexion en cours...
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (errorMessage) {
+    <div class="alert alert-warning py-2">{{ errorMessage }}</div>
+  }
+
+  <form class="input-group" (ngSubmit)="send()">
+    <input
+      type="text"
+      class="form-control"
+      placeholder="Votre question..."
+      [(ngModel)]="question"
+      name="question"
+      [disabled]="loading"
+      autocomplete="off"
+    />
+    <button class="btn btn-primary" type="submit" [disabled]="loading || !question.trim()">
+      Envoyer
+    </button>
+  </form>
+</div>

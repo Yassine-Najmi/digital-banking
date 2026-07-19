@@ -34,6 +34,10 @@ yarn-error.log*
 *.p12
 *.jks
 
+# RAG vector store (régénéré localement)
+backend/data/
+**/ebank-vector-store.json
+
 # OS
 .DS_Store
 Thumbs.db
