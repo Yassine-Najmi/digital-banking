@@ -162,3 +162,31 @@ public ResponseEntity<Map<String, Object>> handleBalanceNotSufficient(BalanceNot
 ```
 
 [À remplacer : capture Swagger UI sur /swagger-ui.html]
+
+## Sécurité JWT
+
+### Principe
+
+L'API est sécurisée avec Spring Security en mode resource server JWT (HMAC partagé, sans serveur d'auth externe).
+
+1. `POST /auth/login` avec username/password
+2. Le serveur authentifie via `AuthenticationManager` et renvoie un JWT (`access-token`, validité 30 min, claims `sub` et `scope`)
+3. Les appels suivants envoient `Authorization: Bearer <token>`
+4. `JwtDecoder` valide la signature HMAC (`jwt.secret`)
+
+```java
+JwtClaimsSet claims = JwtClaimsSet.builder()
+        .issuedAt(now)
+        .expiresAt(now.plus(30, ChronoUnit.MINUTES))
+        .subject(authentication.getName())
+        .claim("scope", scope)
+        .build();
+```
+
+Utilisateurs persistés (`AppUser`) : `user1`/`12345` (USER), `admin`/`12345` (USER,ADMIN), mots de passe BCrypt. `POST /auth/changePassword` permet de changer le mot de passe de l'utilisateur connecté.
+
+Les méthodes sensibles sont protégées avec `@PreAuthorize` : lecture (`USER`), écriture/débit/crédit/suppression (`ADMIN`).
+
+### Audit
+
+Les entités `Customer`, `BankAccount` et `AccountOperation` portent un champ `performedBy`. À chaque save/debit/credit, le service renseigne le username depuis `SecurityContextHolder` (ou `system` au démarrage du seed).

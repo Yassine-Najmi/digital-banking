@@ -36,4 +36,6 @@ public class AccountOperation {
     private BankAccount bankAccount;
 
     private String description;
+
+    private String performedBy;
 }

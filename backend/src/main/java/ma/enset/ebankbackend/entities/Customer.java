@@ -29,4 +29,6 @@ public class Customer {
 
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
     private List<BankAccount> bankAccounts;
+
+    private String performedBy;
 }

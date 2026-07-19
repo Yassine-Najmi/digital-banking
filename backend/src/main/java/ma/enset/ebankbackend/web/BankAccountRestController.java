@@ -9,6 +9,7 @@ import ma.enset.ebankbackend.dtos.TransferRequestDTO;
 import ma.enset.ebankbackend.exceptions.BalanceNotSufficientException;
 import ma.enset.ebankbackend.exceptions.BankAccountNotFoundException;
 import ma.enset.ebankbackend.services.BankAccountService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,21 +31,25 @@ public class BankAccountRestController {
     }
 
     @GetMapping("/accounts/{accountId}")
+    @PreAuthorize("hasAuthority('USER')")
     public BankAccountDTO getBankAccount(@PathVariable String accountId) throws BankAccountNotFoundException {
         return bankAccountService.getBankAccount(accountId);
     }
 
     @GetMapping("/accounts")
+    @PreAuthorize("hasAuthority('USER')")
     public List<BankAccountDTO> listAccounts() {
         return bankAccountService.bankAccountList();
     }
 
     @GetMapping("/accounts/{accountId}/operations")
+    @PreAuthorize("hasAuthority('USER')")
     public List<AccountOperationDTO> getHistory(@PathVariable String accountId) {
         return bankAccountService.accountHistory(accountId);
     }
 
     @GetMapping("/accounts/{accountId}/pageOperations")
+    @PreAuthorize("hasAuthority('USER')")
     public AccountHistoryDTO getAccountHistory(
             @PathVariable String accountId,
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -53,6 +58,7 @@ public class BankAccountRestController {
     }
 
     @PostMapping("/accounts/debit")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public DebitDTO debit(@RequestBody DebitDTO debitDTO)
             throws BankAccountNotFoundException, BalanceNotSufficientException {
         bankAccountService.debit(debitDTO.accountId(), debitDTO.amount(), debitDTO.description());
@@ -60,12 +66,14 @@ public class BankAccountRestController {
     }
 
     @PostMapping("/accounts/credit")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public CreditDTO credit(@RequestBody CreditDTO creditDTO) throws BankAccountNotFoundException {
         bankAccountService.credit(creditDTO.accountId(), creditDTO.amount(), creditDTO.description());
         return creditDTO;
     }
 
     @PostMapping("/accounts/transfer")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public void transfer(@RequestBody TransferRequestDTO transferRequestDTO)
             throws BankAccountNotFoundException, BalanceNotSufficientException {
         bankAccountService.transfer(

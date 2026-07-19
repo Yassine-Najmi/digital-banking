@@ -24,6 +24,8 @@ import ma.enset.ebankbackend.repositories.BankAccountRepository;
 import ma.enset.ebankbackend.repositories.CustomerRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,10 +45,20 @@ public class BankAccountServiceImpl implements BankAccountService {
     private final AccountOperationRepository accountOperationRepository;
     private final BankAccountMapperImpl dtoMapper;
 
+    private String currentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return "system";
+        }
+        return authentication.getName();
+    }
+
     @Override
     public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
         log.info("Saving new Customer");
         Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
+        customer.setPerformedBy(currentUsername());
         Customer savedCustomer = customerRepository.save(customer);
         return dtoMapper.fromCustomer(savedCustomer);
     }
@@ -63,6 +75,7 @@ public class BankAccountServiceImpl implements BankAccountService {
         currentAccount.setOverDraft(overDraft);
         currentAccount.setCustomer(customer);
         currentAccount.setStatus(AccountStatus.CREATED);
+        currentAccount.setPerformedBy(currentUsername());
         CurrentAccount saved = bankAccountRepository.save(currentAccount);
         return dtoMapper.fromCurrentBankAccount(saved);
     }
@@ -79,6 +92,7 @@ public class BankAccountServiceImpl implements BankAccountService {
         savingAccount.setInterestRate(interestRate);
         savingAccount.setCustomer(customer);
         savingAccount.setStatus(AccountStatus.CREATED);
+        savingAccount.setPerformedBy(currentUsername());
         SavingAccount saved = bankAccountRepository.save(savingAccount);
         return dtoMapper.fromSavingBankAccount(saved);
     }
@@ -116,8 +130,10 @@ public class BankAccountServiceImpl implements BankAccountService {
         accountOperation.setDescription(description);
         accountOperation.setOperationDate(new Date());
         accountOperation.setBankAccount(bankAccount);
+        accountOperation.setPerformedBy(currentUsername());
         accountOperationRepository.save(accountOperation);
         bankAccount.setBalance(bankAccount.getBalance() - amount);
+        bankAccount.setPerformedBy(currentUsername());
         bankAccountRepository.save(bankAccount);
     }
 
@@ -131,8 +147,10 @@ public class BankAccountServiceImpl implements BankAccountService {
         accountOperation.setDescription(description);
         accountOperation.setOperationDate(new Date());
         accountOperation.setBankAccount(bankAccount);
+        accountOperation.setPerformedBy(currentUsername());
         accountOperationRepository.save(accountOperation);
         bankAccount.setBalance(bankAccount.getBalance() + amount);
+        bankAccount.setPerformedBy(currentUsername());
         bankAccountRepository.save(bankAccount);
     }
 
@@ -167,6 +185,7 @@ public class BankAccountServiceImpl implements BankAccountService {
     public CustomerDTO updateCustomer(CustomerDTO customerDTO) {
         log.info("Updating Customer");
         Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
+        customer.setPerformedBy(currentUsername());
         Customer savedCustomer = customerRepository.save(customer);
         return dtoMapper.fromCustomer(savedCustomer);
     }
