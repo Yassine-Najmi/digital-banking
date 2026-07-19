@@ -111,3 +111,54 @@ public void debit(String accountId, double amount, String description)
 ```
 
 Le `CommandLineRunner` utilise désormais uniquement la couche service (plus d'accès direct aux repositories).
+
+## Web services RESTful
+
+Les contrôleurs REST exposent la couche service en JSON. CORS est ouvert (`@CrossOrigin("*")`) pour préparer le frontend Angular. La doc interactive est disponible via springdoc : http://localhost:8085/swagger-ui.html
+
+### Endpoints clients
+
+| Méthode | URL | Description |
+|---------|-----|-------------|
+| GET | `/customers` | Liste des clients |
+| GET | `/customers/search?keyword=` | Recherche par nom |
+| GET | `/customers/{id}` | Détail d'un client |
+| POST | `/customers` | Création |
+| PUT | `/customers/{id}` | Mise à jour |
+| DELETE | `/customers/{id}` | Suppression |
+
+### Endpoints comptes
+
+| Méthode | URL | Description |
+|---------|-----|-------------|
+| GET | `/accounts` | Liste des comptes |
+| GET | `/accounts/{id}` | Détail d'un compte |
+| GET | `/accounts/{id}/operations` | Historique complet |
+| GET | `/accounts/{id}/pageOperations?page=&size=` | Historique paginé |
+| POST | `/accounts/debit` | Débit (`DebitDTO`) |
+| POST | `/accounts/credit` | Crédit (`CreditDTO`) |
+| POST | `/accounts/transfer` | Virement (`TransferRequestDTO`) |
+
+Exemple de débit :
+
+```java
+@PostMapping("/accounts/debit")
+public DebitDTO debit(@RequestBody DebitDTO debitDTO)
+        throws BankAccountNotFoundException, BalanceNotSufficientException {
+    bankAccountService.debit(debitDTO.getAccountId(), debitDTO.getAmount(), debitDTO.getDescription());
+    return debitDTO;
+}
+```
+
+### Gestion des exceptions
+
+Un `@RestControllerAdvice` traduit les exceptions métier en codes HTTP : 404 pour client/compte introuvable, 400 pour solde insuffisant.
+
+```java
+@ExceptionHandler(BalanceNotSufficientException.class)
+public ResponseEntity<Map<String, Object>> handleBalanceNotSufficient(BalanceNotSufficientException ex) {
+    return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+}
+```
+
+[À remplacer : capture Swagger UI sur /swagger-ui.html]
