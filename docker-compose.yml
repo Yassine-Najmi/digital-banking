@@ -1,0 +1,14 @@
+services:
+  mysql-ebank:
+    image: mysql:8
+    container_name: mysql-ebank
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ebank-db
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-ebank-data:/var/lib/mysql
+
+volumes:
+  mysql-ebank-data:
