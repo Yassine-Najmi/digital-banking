@@ -2,6 +2,19 @@
 
 Yassine Najmi
 
+## Table des matières
+
+1. [Architecture](#architecture)
+2. [Couche DAO](#couche-dao)
+3. [Couche service et DTOs](#couche-service-et-dtos)
+4. [Web services RESTful](#web-services-restful)
+5. [Sécurité JWT](#sécurité-jwt)
+6. [Client Angular](#client-angular)
+7. [Chatbot RAG](#chatbot-rag)
+8. [Dashboard](#dashboard)
+9. [Comment lancer le projet](#comment-lancer-le-projet)
+10. [Conclusion](#conclusion)
+
 ## Architecture
 
 Le projet est un monorepo organisé en deux parties :
@@ -9,9 +22,9 @@ Le projet est un monorepo organisé en deux parties :
 - `backend/` : API Spring Boot 3 (Java 17, Spring Data JPA, MySQL). La documentation OpenAPI est exposée via springdoc.
 - `frontend/` : application Angular qui consomme l'API.
 
-La sécurité repose sur JWT (Spring Security resource server). Un chatbot RAG (Spring AI + OpenAI) est intégré dans l'application web (route `/chatbot`).
+La sécurité repose sur JWT (Spring Security resource server). Un chatbot RAG (Spring AI + OpenAI) est intégré dans l'application web (route `/chatbot`). Un tableau de bord Chart.js affiche les agrégats bancaires (route `/dashboard`).
 
-Au démarrage local, MySQL 8 tourne dans Docker (`docker compose up -d`, port 3307, base `ebank-db`). Le backend écoute sur le port 8085.
+Au démarrage local, MySQL 8 tourne dans Docker (`docker compose up -d`, port 3307, base `ebank-db`). Le backend écoute sur le port 8085, le frontend sur le port 4200.
 
 ## Couche DAO
 
@@ -69,8 +82,12 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 public interface AccountOperationRepository extends JpaRepository<AccountOperation, Long> {
     List<AccountOperation> findByBankAccountId(String accountId);
     Page<AccountOperation> findByBankAccountId(String accountId, Pageable pageable);
+    List<Object[]> countGroupedByOperationType();
+    List<Object[]> countOperationsGroupedByDaySince(Date fromDate);
 }
 ```
+
+`BankAccountRepository` expose aussi une agrégation JPQL des soldes par type de compte (`TYPE(b)` → CA / SA).
 
 ### Test DAO
 
@@ -82,7 +99,7 @@ Un `CommandLineRunner` crée 3 clients, pour chacun un compte courant et un comp
 
 ### Pourquoi des DTOs
 
-Les contrôleurs REST ne doivent pas exposer directement les entités JPA : relations lazy, structure interne, couplage fort avec la base. Les DTOs (`CustomerDTO`, `CurrentBankAccountDTO`, `SavingBankAccountDTO`, `AccountOperationDTO`, `AccountHistoryDTO`) portent uniquement les données utiles à l'API. Un mapper (`BankAccountMapperImpl`) convertit entité ↔ DTO avec `BeanUtils.copyProperties`.
+Les contrôleurs REST ne doivent pas exposer directement les entités JPA : relations lazy, structure interne, couplage fort avec la base. Les DTOs (`CustomerDTO`, `CurrentBankAccountDTO`, `SavingBankAccountDTO`, `AccountOperationDTO`, `AccountHistoryDTO`, `DashboardStatsDTO`) portent uniquement les données utiles à l'API. Un mapper (`BankAccountMapperImpl`) convertit entité ↔ DTO avec `BeanUtils.copyProperties`.
 
 ```java
 public CustomerDTO fromCustomer(Customer customer) {
@@ -114,7 +131,7 @@ Le `CommandLineRunner` utilise désormais uniquement la couche service (plus d'a
 
 ## Web services RESTful
 
-Les contrôleurs REST exposent la couche service en JSON. CORS est ouvert (`@CrossOrigin("*")`) pour préparer le frontend Angular. La doc interactive est disponible via springdoc : http://localhost:8085/swagger-ui.html
+Les contrôleurs REST exposent la couche service en JSON. CORS est ouvert (`@CrossOrigin("*")`) pour le frontend Angular. La doc interactive est disponible via springdoc : http://localhost:8085/swagger-ui.html
 
 ### Endpoints clients
 
@@ -139,13 +156,23 @@ Les contrôleurs REST exposent la couche service en JSON. CORS est ouvert (`@Cro
 | POST | `/accounts/credit` | Crédit (`CreditDTO`) |
 | POST | `/accounts/transfer` | Virement (`TransferRequestDTO`) |
 
+### Autres endpoints
+
+| Méthode | URL | Description |
+|---------|-----|-------------|
+| POST | `/auth/login` | Authentification JWT |
+| GET | `/auth/profile` | Profil de l'utilisateur connecté |
+| POST | `/auth/changePassword` | Changement de mot de passe |
+| POST | `/chat` | Chatbot RAG (si `OPENAI_API_KEY` est définie) |
+| GET | `/dashboard/stats` | Statistiques pour le tableau de bord |
+
 Exemple de débit :
 
 ```java
 @PostMapping("/accounts/debit")
 public DebitDTO debit(@RequestBody DebitDTO debitDTO)
         throws BankAccountNotFoundException, BalanceNotSufficientException {
-    bankAccountService.debit(debitDTO.getAccountId(), debitDTO.getAmount(), debitDTO.getDescription());
+    bankAccountService.debit(debitDTO.accountId(), debitDTO.amount(), debitDTO.description());
     return debitDTO;
 }
 ```
@@ -193,34 +220,23 @@ Les entités `Customer`, `BankAccount` et `AccountOperation` portent un champ `p
 
 ## Client Angular
 
-Application `ebank-frontend` (Angular 19, composants standalone) dans `frontend/`. Bootstrap et Bootstrap Icons sont installés via npm (pas de CDN) et référencés dans `angular.json`.
-
-### Démarrage
-
-```bash
-cd frontend
-npm install
-npm start
-```
-
-Le client écoute sur http://localhost:4200 et appelle l'API via `environment.backendHost = http://localhost:8085`.
-
-Comptes de test : `admin` / `12345` (USER + ADMIN), `user1` / `12345` (USER).
+Application `ebank-frontend` (Angular 19, composants standalone) dans `frontend/`. Bootstrap et Bootstrap Icons sont installés via npm (pas de CDN) et référencés dans `angular.json`. Les graphiques utilisent `ng2-charts` et `chart.js`.
 
 ### Structure
 
 ```
 frontend/src/app/
+  dashboard/         # stats + graphiques Chart.js
   accounts/          # solde + opérations paginées + débit/crédit/virement (ADMIN)
   customers/         # liste, recherche, création, édition
+  chatbot/           # conversation RAG
   guards/            # authGuard
   interceptors/      # Bearer JWT
   login/             # formulaire Bootstrap
   models/            # interfaces TypeScript (DTOs)
-  navbar/            # username + déconnexion
-  services/          # AuthService, CustomerService, AccountService, ChatService
-  chatbot/           # conversation RAG (bulles user/assistant)
-src/environments/    # backendHost
+  navbar/            # navigation + username + déconnexion
+  services/          # Auth, Customer, Account, Chat, Dashboard
+src/environments/    # backendHost = http://localhost:8085
 ```
 
 ### Authentification
@@ -229,25 +245,26 @@ src/environments/    # backendHost
 
 L'interceptor HTTP ajoute l'en-tête `Authorization: Bearer <token>` sur chaque requête (sauf `/auth/login`).
 
-`authGuard` protège les routes métier : si aucun token n'est présent, redirection vers `/login`.
+`authGuard` protège les routes métier : si aucun token n'est présent, redirection vers `/login`. Après connexion, redirection vers `/dashboard`.
 
 Dans l'UI, les actions ADMIN (nouveau client, modifier, supprimer, formulaire d'opération) sont masquées si le rôle `ADMIN` est absent.
 
 ### Fonctionnalités
 
+- **Dashboard** : cartes de stats et graphiques (doughnut, bar, line).
 - **Clients** : recherche (`GET /customers/search?keyword=`), tableau, formulaires réactifs avec validation (nom, email).
-- **Comptes** : saisie d'un id de compte, affichage du solde et de l'historique paginé (`/accounts/{id}/pageOperations`). En ADMIN : CREDIT, DEBIT ou TRANSFER, puis rafraîchissement de la table.
+- **Comptes** : saisie d'un id de compte, affichage du solde et de l'historique paginé. En ADMIN : CREDIT, DEBIT ou TRANSFER.
 - **Chatbot** : route `/chatbot`, conversation avec l'assistant RAG (`POST /chat`).
 
 ### Captures d'écran
 
 [À remplacer : page de connexion]
 
+[À remplacer : dashboard avec graphiques]
+
 [À remplacer : liste des clients (admin)]
 
 [À remplacer : page compte avec solde et opérations]
-
-[À remplacer : formulaire débit/crédit (admin)]
 
 ## Chatbot RAG
 
@@ -265,6 +282,7 @@ RAG (Retrieval Augmented Generation) complète le modèle de langage avec des do
 - Document source : `backend/src/main/resources/rag/guide-produits-ebank.md`
 - Configuration : `RagConfig` (ingestion / chargement), `ChatService` (`ChatClient` + advisor + prompt système en français), `POST /chat` (`ChatRestController`, authentifié `USER`)
 - Frontend : route `/chatbot` (bulles utilisateur / conseiller, état de chargement)
+- Les beans RAG ne sont chargés que si `OPENAI_API_KEY` est définie (le reste de l'API démarre sans clé)
 
 Spring AI **1.1.8** (BOM) est utilisé : c'est la branche stable compatible Spring Boot 3.5. Spring AI 2.0 nécessite Spring Boot 4.
 
@@ -276,16 +294,54 @@ La clé OpenAI **n'est jamais commitée**. Elle est fournie uniquement via la va
 spring.ai.openai.api-key=${OPENAI_API_KEY}
 ```
 
-Voir `.env.example` à la racine du monorepo. Exemple Windows PowerShell :
-
-```powershell
-$env:OPENAI_API_KEY = "sk-..."
-cd backend
-mvn spring-boot:run
-```
+Voir `.env.example` à la racine du monorepo.
 
 ### Captures
 
 [À remplacer : conversation chatbot sur les frais / découvert]
 
 [À remplacer : refus d'une question hors sujet]
+
+## Dashboard
+
+`GET /dashboard/stats` renvoie un `DashboardStatsDTO` :
+
+- nombre total de clients et de comptes
+- somme des soldes par type de compte (`CA` / `SA`) via JPQL `TYPE(b)`
+- nombre d'opérations par type (`DEBIT` / `CREDIT`)
+- nombre d'opérations des 7 derniers jours, groupées par jour (`CAST(... AS LocalDate)`)
+
+Côté Angular, la page `/dashboard` affiche trois cartes (clients, comptes, solde total), un doughnut (soldes CA/SA), un bar chart (DEBIT/CREDIT) et un line chart (activité sur 7 jours).
+
+[À remplacer : capture du dashboard]
+
+## Comment lancer le projet
+
+Prérequis : Java 17, Maven, Node.js / npm, Docker.
+
+```powershell
+# 1. Base MySQL
+cd "digital-banking"
+docker compose up -d
+
+# 2. Clé OpenAI (optionnelle, nécessaire uniquement pour le chatbot RAG)
+$env:OPENAI_API_KEY = "sk-..."
+
+# 3. Backend
+cd backend
+mvn spring-boot:run
+# API : http://localhost:8085
+# Swagger : http://localhost:8085/swagger-ui.html
+
+# 4. Frontend (autre terminal)
+cd frontend
+npm install
+npm start
+# UI : http://localhost:4200
+```
+
+Comptes de test : `admin` / `12345` (USER + ADMIN), `user1` / `12345` (USER).
+
+## Conclusion
+
+Ce projet couvre une API bancaire complète (héritage JPA, service transactionnel, REST, JWT, audit), un client Angular (auth, CRUD clients, opérations sur comptes, chatbot, dashboard Chart.js) et un chatbot RAG basé sur Spring AI. La clé OpenAI reste hors du dépôt. Les captures d'écran peuvent être ajoutées aux emplacements indiqués dans ce compte rendu.

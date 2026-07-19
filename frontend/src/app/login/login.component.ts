@@ -31,7 +31,7 @@ export class LoginComponent {
     const { username, password } = this.form.getRawValue();
     this.errorMessage = '';
     this.authService.login(username, password).subscribe({
-      next: () => this.router.navigateByUrl('/customers'),
+      next: () => this.router.navigateByUrl('/dashboard'),
       error: () => {
         this.errorMessage = 'Identifiants incorrects';
       }

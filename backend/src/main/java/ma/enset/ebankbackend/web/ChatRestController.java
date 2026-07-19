@@ -3,6 +3,7 @@ package ma.enset.ebankbackend.web;
 import ma.enset.ebankbackend.dtos.ChatRequestDTO;
 import ma.enset.ebankbackend.dtos.ChatResponseDTO;
 import ma.enset.ebankbackend.services.ChatService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @CrossOrigin("*")
+@ConditionalOnBean(ChatService.class)
 public class ChatRestController {
 
     private final ChatService chatService;

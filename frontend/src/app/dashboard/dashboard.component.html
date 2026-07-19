@@ -1,0 +1,70 @@
+<div class="container">
+  <h2 class="mb-4">Tableau de bord</h2>
+
+  @if (loading) {
+    <div class="text-muted">Chargement des statistiques...</div>
+  }
+
+  @if (errorMessage) {
+    <div class="alert alert-danger">{{ errorMessage }}</div>
+  }
+
+  @if (stats) {
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label">Clients</div>
+          <div class="stat-value">{{ stats.totalCustomers }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label">Comptes</div>
+          <div class="stat-value">{{ stats.totalAccounts }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="stat-label">Solde total</div>
+          <div class="stat-value">{{ totalBalance | number: '1.0-0' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="chart-panel">
+          <h5 class="mb-3">Soldes par type de compte</h5>
+          <canvas
+            baseChart
+            [type]="'doughnut'"
+            [data]="doughnutChartData"
+            [options]="doughnutChartOptions"
+          ></canvas>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-panel">
+          <h5 class="mb-3">Opérations DEBIT / CREDIT</h5>
+          <canvas
+            baseChart
+            [type]="'bar'"
+            [data]="barChartData"
+            [options]="barChartOptions"
+          ></canvas>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-panel">
+          <h5 class="mb-3">Opérations (7 derniers jours)</h5>
+          <canvas
+            baseChart
+            [type]="'line'"
+            [data]="lineChartData"
+            [options]="lineChartOptions"
+          ></canvas>
+        </div>
+      </div>
+    </div>
+  }
+</div>
